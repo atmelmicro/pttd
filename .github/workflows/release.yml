@@ -12,8 +12,14 @@ jobs:
   release:
     runs-on: ubuntu-latest
 
+    env:
+      CGO_ENABLED: 1
+
     steps:
       - uses: actions/checkout@v5
+
+      - name: Install system deps
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libasound2-dev
 
       - uses: actions/setup-go@v6
         with:
