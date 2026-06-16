@@ -1,3 +1,5 @@
+version: 2
+
 project_name: pttd
 
 builds:
@@ -10,8 +12,11 @@ builds:
 
 archives:
   - format: tar.gz
-    files:
-      - none
+    name_template: >-
+      {{ .ProjectName }}_
+      {{- .Version }}_
+      {{- .Os }}_
+      {{- .Arch }}
 
 checksum:
   name_template: "checksums.txt"
@@ -21,31 +26,22 @@ release:
     owner: atmelmicro
     name: pttd
 
-
 brews:
-  - name: pttd
-
-    repository:
+  - repository:
       owner: atmelmicro
       name: homebrew-pttd
       token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
-
     homepage: "https://github.com/atmelmicro/pttd"
     description: "A push to talk daemon that allows global push to talk on Linux."
     license: MIT
-
     directory: Formula
-
     install: |
       bin.install "pttd"
-
     service: |
       run: [opt_bin/"pttd"]
       working_dir: var/"pttd"
       log_path: var/"log/pttd.log"
       error_log_path: var/"log/pttd-error.log"
       keep_alive: true
-
-    skip_upload: auto  # don't publish pre-release tags
-
+    skip_upload: auto
     commit_msg_template: "formula: update pttd to {{ .Tag }}"
