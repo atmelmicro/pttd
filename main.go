@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,11 +11,15 @@ import (
 
 	"github.com/goccy/go-yaml"
 	"github.com/gogpu/systray"
+	"github.com/gopxl/beep/v2"
+	"github.com/gopxl/beep/v2/effects"
+	"github.com/gopxl/beep/v2/speaker"
+	"github.com/gopxl/beep/v2/vorbis"
 	"github.com/grafov/evdev"
 )
 
-//go:embed icons/**
-var iconFS embed.FS
+//go:embed assets/**
+var assetsFS embed.FS
 
 type Icon struct {
 	dark  []byte
@@ -28,11 +33,52 @@ type Icons struct {
 }
 
 type Settings struct {
-	Delay   int    `yaml:"delay"`
-	Device  string `yaml:"device"`
-	Keycode string `yaml:"keycode"`
-	Verbose bool   `yaml:"verbose"`
+	Delay   int     `yaml:"delay"`
+	Device  string  `yaml:"device"`
+	Keycode string  `yaml:"keycode"`
+	Verbose bool    `yaml:"verbose"`
+	Volume  float64 `yaml:"volume"`
 }
+
+type Sound struct {
+	Buffer *beep.Buffer
+}
+
+// sound
+
+func loadOgg(path string) *Sound {
+	f, err := assetsFS.Open(path)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer f.Close()
+
+	streamer, format, err := vorbis.Decode(f)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer streamer.Close()
+
+	buffer := beep.NewBuffer(format)
+	buffer.Append(streamer)
+
+	return &Sound{Buffer: buffer}
+}
+
+func play(s *Sound, volume float64) {
+	stream := s.Buffer.Streamer(0, s.Buffer.Len())
+
+	vol := &effects.Volume{
+		Streamer: stream,
+		Base:     2,
+		Volume:   volume,
+		Silent:   false,
+	}
+
+	speaker.Play(vol)
+}
+
+// settings
 
 func getSettings() Settings {
 	configDir, err := os.UserConfigDir()
@@ -53,12 +99,14 @@ func getSettings() Settings {
 	return settings
 }
 
+// tray
+
 func setIcon(tray *systray.SystemTray, icon Icon) {
 	tray.SetIcon(icon.light).SetDarkModeIcon(icon.dark)
 }
 
 func loadIcon(path string) []byte {
-	icon, err := iconFS.ReadFile("icons/" + path)
+	icon, err := assetsFS.ReadFile("assets/icons/" + path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading icon %s: %v\n", path, err)
 		os.Exit(1)
@@ -84,13 +132,7 @@ func loadIcons() Icons {
 	}
 }
 
-func setMute(value string) {
-	err := exec.Command("wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", value).Run()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error toggling mute: %v\n", err)
-	}
-}
-
+// recreating the menu is stupid, but i dont think this lib supports doing this any other way
 func createMenu(isEnabled *bool, tray *systray.SystemTray, icons Icons) *systray.Menu {
 	menu := systray.NewMenu()
 
@@ -130,15 +172,30 @@ func runTray(tray *systray.SystemTray) {
 	}
 }
 
+// mic control
+
+func setMute(value string) {
+	err := exec.Command("wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", value).Run()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error toggling mute: %v\n", err)
+	}
+}
+
 func main() {
 	settings := getSettings()
+
+	// load sounds
+	format := beep.SampleRate(44100)
+	speaker.Init(format, format.N(time.Second/100))
+
+	in := loadOgg("assets/sounds/in.ogg")
+	out := loadOgg("assets/sounds/out.ogg")
+
 	// mute mic on startup
 
 	setMute("1")
-	// Load icons
 	icons := loadIcons()
 
-	// Create system tray
 	tray := systray.New()
 	setIcon(tray, icons.micOffIcon)
 
@@ -214,11 +271,13 @@ func main() {
 
 					setMute("0")
 					setIcon(tray, icons.micOnIcon)
+					play(in, settings.Volume)
 				} else {
 					timer = time.AfterFunc(time.Duration(settings.Delay)*time.Millisecond, func() {
 						setMute("1")
+						setIcon(tray, icons.micOffIcon)
+						play(out, settings.Volume)
 					})
-					setIcon(tray, icons.micOffIcon)
 				}
 			}
 		}
