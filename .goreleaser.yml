@@ -1,0 +1,22 @@
+project_name: pttd
+
+builds:
+  - binary: pttd
+    main: .
+    goos:
+      - linux
+    goarch:
+      - amd64
+
+archives:
+  - format: tar.gz
+    files:
+      - none
+
+checksum:
+  name_template: "checksums.txt"
+
+release:
+  github:
+    owner: atmelmicro
+    name: pttd

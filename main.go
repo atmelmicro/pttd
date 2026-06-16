@@ -1,15 +1,20 @@
 package main
 
 import (
+	"embed"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
 	"github.com/goccy/go-yaml"
 	"github.com/gogpu/systray"
 	"github.com/grafov/evdev"
 )
+
+//go:embed icons/**
+var iconFS embed.FS
 
 type Icon struct {
 	dark  []byte
@@ -23,10 +28,10 @@ type Icons struct {
 }
 
 type Settings struct {
-	delay   int
-	device  string
-	keycode string
-	verbose bool
+	Delay   int    `yaml:"delay"`
+	Device  string `yaml:"device"`
+	Keycode string `yaml:"keycode"`
+	Verbose bool   `yaml:"verbose"`
 }
 
 func getSettings() Settings {
@@ -53,7 +58,7 @@ func setIcon(tray *systray.SystemTray, icon Icon) {
 }
 
 func loadIcon(path string) []byte {
-	icon, err := os.ReadFile("icons/" + path)
+	icon, err := iconFS.ReadFile("icons/" + path)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading icon %s: %v\n", path, err)
 		os.Exit(1)
@@ -144,7 +149,7 @@ func main() {
 
 	go runTray(tray)
 
-	devicePath := settings.device
+	devicePath := settings.Device
 
 	dev, err := evdev.Open(devicePath)
 	if err != nil {
@@ -160,8 +165,8 @@ func main() {
 	fmt.Fprintf(os.Stderr, "Input device ID: bus %#x vendor %#x product %#x\n",
 		dev.Bustype, dev.Vendor, dev.Product)
 
-	evKeycode := evdev.Ecode(settings.keycode)
-	if evKeycode == 0 && settings.keycode != "KEY_RESERVED" {
+	evKeycode := evdev.Ecode(settings.Keycode)
+	if evKeycode == 0 && settings.Keycode != "KEY_RESERVED" {
 		fmt.Fprintf(os.Stderr, "Key code not found\n")
 		fmt.Fprintf(os.Stderr, "see https://github.com/torvalds/linux/blob/master/include/uapi/linux/input-event-codes.h\n")
 		os.Exit(1)
@@ -177,9 +182,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	if settings.verbose {
-		fmt.Fprintf(os.Stderr, "Listening for code %s\n", settings.keycode)
+	if settings.Verbose {
+		fmt.Fprintf(os.Stderr, "Listening for code %s\n", settings.Keycode)
 	}
+
+	var timer *time.Timer = nil
 
 	for {
 		events, err := dev.Read()
@@ -190,17 +197,22 @@ func main() {
 
 		for _, ev := range events {
 			if ev.Type == evdev.EV_KEY && ev.Code == uint16(evKeycode) && ev.Value != 2 {
-				if settings.verbose {
+				if settings.Verbose {
 					fmt.Fprintf(os.Stderr, "Received event: type=%d code=%d value=%d\n", ev.Type, ev.Code, ev.Value)
 				}
 
 				if ev.Value == 1 {
-					fmt.Fprintf(os.Stderr, "key down\n")
+					if timer != nil {
+						timer.Stop()
+						timer = nil
+					}
+
 					setMute("0")
 					setIcon(tray, icons.micOnIcon)
 				} else {
-					fmt.Fprintf(os.Stderr, "key up\n")
-					setMute("1")
+					timer = time.AfterFunc(time.Duration(settings.Delay)*time.Millisecond, func() {
+						setMute("1")
+					})
 					setIcon(tray, icons.micOffIcon)
 				}
 			}
