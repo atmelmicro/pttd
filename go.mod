@@ -4,9 +4,11 @@ go 1.26.4
 
 require github.com/grafov/evdev v1.0.0
 
-require github.com/getlantern/systray v1.2.2
+require github.com/gogpu/systray v0.1.0
 
 require (
-	github.com/gopherlibs/appindicator v1.2.0 // indirect
-	github.com/gotk3/gotk3 v0.6.5-0.20240618185848-ff349ae13f56 // indirect
+	github.com/go-webgpu/goffi v0.5.0 // indirect
+	github.com/goccy/go-yaml v1.19.2 // indirect
+	github.com/godbus/dbus/v5 v5.1.0 // indirect
+	golang.org/x/sys v0.43.0 // indirect
 )
