@@ -155,7 +155,7 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to open device: %v\n", err)
 		if os.Getuid() != 0 {
-			fmt.Fprintf(os.Stderr, "Fix permissions to %s or run as root\n", devicePath)
+			fmt.Fprintf(os.Stderr, "Fix permissions to %s \n", devicePath)
 		}
 		os.Exit(1)
 	}
@@ -192,11 +192,16 @@ func main() {
 		events, err := dev.Read()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Read error: %v\n", err)
+			// probably the device was disconnected, wait a bit before trying again
+			time.Sleep(5000 * time.Millisecond)
 			continue
 		}
 
 		for _, ev := range events {
 			if ev.Type == evdev.EV_KEY && ev.Code == uint16(evKeycode) && ev.Value != 2 {
+				if !isEnabled {
+					continue
+				}
 				if settings.Verbose {
 					fmt.Fprintf(os.Stderr, "Received event: type=%d code=%d value=%d\n", ev.Type, ev.Code, ev.Value)
 				}
