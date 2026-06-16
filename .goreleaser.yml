@@ -38,10 +38,10 @@ brews:
     install: |
       bin.install "pttd"
     service: |
-      run: [opt_bin/"pttd"]
-      working_dir: var/"pttd"
-      log_path: var/"log/pttd.log"
-      error_log_path: var/"log/pttd-error.log"
-      keep_alive: true
+      run [opt_bin/"pttd"]
+      working_dir var/"pttd"
+      log_path var/"log/pttd.log"
+      error_log_path var/"log/pttd-error.log"
+      keep_alive true
     skip_upload: auto
     commit_msg_template: "formula: update pttd to {{ .Tag }}"
