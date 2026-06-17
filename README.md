@@ -19,28 +19,40 @@ On Bazzite
 For the rest of the Linux distributions
 
 - Open a terminal
-- Run `sudo usermod -aG input $USER`
+- Run
+
+```bash
+sudo usermod -aG input $USER
+```
+
 - Reboot
 
 ### Step 2 - Figure out your device-id
 
 - Open a terminal
-- Run `evtest`
+- Run
+
+```bash
+evtest
+```
+
 - You should see a list of all your input devices
   - If you do not see your input device, please create a GitHub issue
 - For the device you want to use, take note of all the event numbers
 - In my case it will be my mouse, so all the entries are
 
-```
-/dev/input/event10:	Compx 2.4G Wireless 8K Receiver
-/dev/input/event11:	Compx 2.4G Wireless 8K Receiver
-/dev/input/event12:	Compx 2.4G Wireless 8K Receiver
-/dev/input/event13:	Compx 2.4G Wireless 8K Receiver Consumer Control
-/dev/input/event14:	Compx 2.4G Wireless 8K Receiver System Control
-/dev/input/event15:	Compx 2.4G Wireless 8K Receiver
-/dev/input/event16:	Compx 2.4G Wireless 8K Receiver
-/dev/input/event17:	Compx 2.4G Wireless 8K Receiver Mouse
-/dev/input/event18:	Compx 2.4G Wireless 8K Receiver
+````
+
+/dev/input/event10: Compx 2.4G Wireless 8K Receiver
+/dev/input/event11: Compx 2.4G Wireless 8K Receiver
+/dev/input/event12: Compx 2.4G Wireless 8K Receiver
+/dev/input/event13: Compx 2.4G Wireless 8K Receiver Consumer Control
+/dev/input/event14: Compx 2.4G Wireless 8K Receiver System Control
+/dev/input/event15: Compx 2.4G Wireless 8K Receiver
+/dev/input/event16: Compx 2.4G Wireless 8K Receiver
+/dev/input/event17: Compx 2.4G Wireless 8K Receiver Mouse
+/dev/input/event18: Compx 2.4G Wireless 8K Receiver
+
 ```
 
 - Now type the first event number (for `/dev/input/event10` -> 10) and press Enter
@@ -51,10 +63,12 @@ For the rest of the Linux distributions
 - You will see something like this
 
 ```
+
 Event: time 1781641240.046489, -------------- SYN_REPORT ------------
 Event: time 1781641240.145495, type 4 (EV_MSC), code 4 (MSC_SCAN), value 90005
 Event: time 1781641240.145495, type 1 (EV_KEY), code 276 (BTN_EXTRA), value 0
 Event: time 1781641240.145495, -------------- SYN_REPORT ------------
+
 ```
 
 - The important part is "Event: time 1781641240.145495, type 1 (EV_KEY), code 276 (**BTN_EXTRA**), value 0"
@@ -64,8 +78,10 @@ Event: time 1781641240.145495, -------------- SYN_REPORT ------------
 - You should see something like this - if you don't, create a GitHub issue
 
 ```
+
 E: DEVLINKS=/dev/input/by-path/pci-0000:00:14.0-usb-0:9:1.2-event-mouse /dev/input/by-path/pci-0000:00:14.0-usbv2-0:9:1.2-event-mouse /dev/input/by-id/usb-Compx_2.4G_Wireless_8K_Receiver-if02-event-mouse
-```
+
+````
 
 - The path that starts with `/dev/input/by-id/` should be highlighted red, that is the one we need
 - For this example it's `/dev/input/by-id/usb-Compx_2.4G_Wireless_8K_Receiver-if02-event-mouse`
@@ -73,23 +89,46 @@ E: DEVLINKS=/dev/input/by-path/pci-0000:00:14.0-usb-0:9:1.2-event-mouse /dev/inp
 
 ### Step 3 - Installing pttd
 
-- Check if you have installed `brew` by running `which brew`
-  - If a path like `/home/linuxbrew/.linuxbrew/bin/brew` shows, good, you have brew installed
-  - If something like `/usr/bin/which: no brew in (...)` or it does not return anything, install brew from https://brew.sh
-- Tap the repository by running `brew tap atmelmicro/pttd`
+- Check if you have `brew` installed by running
+
+```bash
+brew -v
+```
+
+If it returns something like `Homebrew 6.0.2`, good, you have brew installed
+
+If something like `bash: brew: command not found`, install brew from https://brew.sh
+
+- Tap the repository by running
+
+```bash
+brew tap atmelmicro/pttd
+```
+
+- Trust the pttd package
+
+```bash
+brew trust --formula atmelmicro/pttd/pttd
+```
+
 - Install pttd `brew install pttd`
+
+```bash
+brew install pttd
+```
 
 ### Step 4 - Creating a config
 
 - Run `mkdir ~/.config/pttd/`
 - Then run `nano ~/.config/pttd/config.yaml`
-- In the config you will set the keycode, device, delay and volume like this
+- Example config:
 
 ```yaml
 keycode: BTN_EXTRA # Change this to your desired keycode
 device: "/dev/input/by-id/usb-Compx_2.4G_Wireless_8K_Receiver-if02-event-mouse" # Change this to your device path
 delay: 200 # When you stop pressing your PTT key, pttd will wait x ms until it cuts you off
 volume: -2 # Volume control for the ping of PTT
+kde: false # Enable this to use KDE icons instead of GNOME ones
 ```
 
 - Press `Ctrl+X`, then `Y` then `Enter`

@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/goccy/go-yaml"
@@ -46,6 +45,7 @@ type Settings struct {
 	Verbose bool    `yaml:"verbose"`
 	Volume  float64 `yaml:"volume"`
 	Muted   bool    `yaml:"muted"`
+	Kde     bool    `yaml:"kde"`
 }
 
 type Sound struct {
@@ -109,12 +109,9 @@ func getSettings() Settings {
 
 // tray
 
-func setIcon(tray *systray.SystemTray, icon Icon) {
+func setIcon(tray *systray.SystemTray, icon Icon, settings Settings) {
 	// Check if we are running kde
-	if strings.Contains(
-		strings.ToUpper(os.Getenv("XDG_CURRENT_DESKTOP")),
-		"KDE",
-	) {
+	if settings.Kde {
 
 		tray.SetIcon(icon.kde.light).SetDarkModeIcon(icon.kde.dark)
 	} else {
@@ -160,7 +157,7 @@ func loadIcons() Icons {
 }
 
 // recreating the menu is stupid, but i dont think this lib supports doing this any other way
-func createMenu(isEnabled *bool, tray *systray.SystemTray, icons Icons) *systray.Menu {
+func createMenu(isEnabled *bool, tray *systray.SystemTray, icons Icons, settings Settings) *systray.Menu {
 	menu := systray.NewMenu()
 
 	menu.AddCheckbox("Enabled", *isEnabled, func() {
@@ -179,8 +176,8 @@ func createMenu(isEnabled *bool, tray *systray.SystemTray, icons Icons) *systray
 
 		setMute(wpctlArg)
 
-		newMenu := createMenu(isEnabled, tray, icons)
-		setIcon(tray, menuIcon)
+		newMenu := createMenu(isEnabled, tray, icons, settings)
+		setIcon(tray, menuIcon, settings)
 		tray.SetMenu(newMenu)
 	})
 
@@ -223,10 +220,10 @@ func main() {
 	icons := loadIcons()
 
 	tray := systray.New()
-	setIcon(tray, icons.micOffIcon)
+	setIcon(tray, icons.micOffIcon, settings)
 
 	isEnabled := true
-	menu := createMenu(&isEnabled, tray, icons)
+	menu := createMenu(&isEnabled, tray, icons, settings)
 	tray.SetMenu(menu)
 	tray.Show()
 
@@ -296,7 +293,7 @@ func main() {
 					}
 
 					setMute("0")
-					setIcon(tray, icons.micOnIcon)
+					setIcon(tray, icons.micOnIcon, settings)
 
 					if !settings.Muted {
 						play(in, settings.Volume)
@@ -304,7 +301,7 @@ func main() {
 				} else {
 					timer = time.AfterFunc(time.Duration(settings.Delay)*time.Millisecond, func() {
 						setMute("1")
-						setIcon(tray, icons.micOffIcon)
+						setIcon(tray, icons.micOffIcon, settings)
 
 						if !settings.Muted {
 							play(out, settings.Volume)
