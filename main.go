@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/goccy/go-yaml"
@@ -22,8 +23,14 @@ import (
 var assetsFS embed.FS
 
 type Icon struct {
-	dark  []byte
-	light []byte
+	kde struct {
+		dark  []byte
+		light []byte
+	}
+	gnome struct {
+		dark  []byte
+		light []byte
+	}
 }
 
 type Icons struct {
@@ -38,6 +45,7 @@ type Settings struct {
 	Keycode string  `yaml:"keycode"`
 	Verbose bool    `yaml:"verbose"`
 	Volume  float64 `yaml:"volume"`
+	Muted   bool    `yaml:"muted"`
 }
 
 type Sound struct {
@@ -102,7 +110,16 @@ func getSettings() Settings {
 // tray
 
 func setIcon(tray *systray.SystemTray, icon Icon) {
-	tray.SetIcon(icon.light).SetDarkModeIcon(icon.dark)
+	// Check if we are running kde
+	if strings.Contains(
+		strings.ToUpper(os.Getenv("XDG_CURRENT_DESKTOP")),
+		"KDE",
+	) {
+
+		tray.SetIcon(icon.kde.light).SetDarkModeIcon(icon.kde.dark)
+	} else {
+		tray.SetIcon(icon.gnome.light).SetDarkModeIcon(icon.gnome.dark)
+	}
 }
 
 func loadIcon(path string) []byte {
@@ -115,20 +132,30 @@ func loadIcon(path string) []byte {
 	return icon
 }
 
+func loadIconSet(path string) Icon {
+	gnomeDarkIcon := loadIcon("gnome/dark/" + path)
+	gnomeLightIcon := loadIcon("gnome/light/" + path)
+
+	kdeDarkIcon := loadIcon("kde/dark/" + path)
+	kdeLightIcon := loadIcon("kde/light/" + path)
+
+	return Icon{
+		kde: struct {
+			dark  []byte
+			light []byte
+		}{dark: kdeDarkIcon, light: kdeLightIcon},
+		gnome: struct {
+			dark  []byte
+			light []byte
+		}{dark: gnomeDarkIcon, light: gnomeLightIcon},
+	}
+}
+
 func loadIcons() Icons {
-	micDisabledIconDark := loadIcon("dark/mic-disabled.png")
-	micDisabledIconLight := loadIcon("light/mic-disabled.png")
-
-	micOffIconDark := loadIcon("dark/mic-off.png")
-	micOffIconLight := loadIcon("light/mic-off.png")
-
-	micOnIconDark := loadIcon("dark/mic-on.png")
-	micOnIconLight := loadIcon("light/mic-on.png")
-
 	return Icons{
-		micDisabledIcon: Icon{dark: micDisabledIconDark, light: micDisabledIconLight},
-		micOffIcon:      Icon{dark: micOffIconDark, light: micOffIconLight},
-		micOnIcon:       Icon{dark: micOnIconDark, light: micOnIconLight},
+		micDisabledIcon: loadIconSet("mic-disabled.png"),
+		micOffIcon:      loadIconSet("mic-off.png"),
+		micOnIcon:       loadIconSet("mic-on.png"),
 	}
 }
 
@@ -153,7 +180,6 @@ func createMenu(isEnabled *bool, tray *systray.SystemTray, icons Icons) *systray
 		setMute(wpctlArg)
 
 		newMenu := createMenu(isEnabled, tray, icons)
-		fmt.Println("setting new menu", isEnabled)
 		setIcon(tray, menuIcon)
 		tray.SetMenu(newMenu)
 	})
@@ -271,12 +297,18 @@ func main() {
 
 					setMute("0")
 					setIcon(tray, icons.micOnIcon)
-					play(in, settings.Volume)
+
+					if !settings.Muted {
+						play(in, settings.Volume)
+					}
 				} else {
 					timer = time.AfterFunc(time.Duration(settings.Delay)*time.Millisecond, func() {
 						setMute("1")
 						setIcon(tray, icons.micOffIcon)
-						play(out, settings.Volume)
+
+						if !settings.Muted {
+							play(out, settings.Volume)
+						}
 					})
 				}
 			}
